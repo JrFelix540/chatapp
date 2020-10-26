@@ -2,6 +2,7 @@ import { User } from "../entities/User";
 import { MyContext } from "../types";
 import { Arg, Ctx, Field, Mutation, ObjectType, Query, Resolver } from "type-graphql";
 import argon2 from "argon2";
+import jwt from "jsonwebtoken";
 import { USERID_COOKIE } from "../constants";
 
 @ObjectType()
@@ -9,8 +10,8 @@ export class UserResponse {
     @Field(() => [FieldError], { nullable: true })
     errors?: FieldError[];
 
-    @Field(() => User, { nullable: true })
-    user?: User;
+    @Field(() => String, { nullable: true })
+    token?: string;
 }
 
 @ObjectType()
@@ -76,13 +77,17 @@ export class UserResolver {
             }
         }
 
+        const token = jwt.sign({ email }, USERID_COOKIE, {
+            expiresIn: 60 * 60
+        });
+
         return {
-            user
+            token
         };
     }
     @Mutation(() => UserResponse)
     async login(
-        @Ctx() { em, req }: MyContext,
+        @Ctx() { em }: MyContext,
         @Arg("usernameOrEmail") usernameOrEmail: string,
         @Arg("password") password: string
     ): Promise<UserResponse> {
@@ -118,29 +123,52 @@ export class UserResolver {
             };
         }
 
-        req.session.userId = user.id;
+        const email = user.email;
+
+        const token = jwt.sign({ email }, USERID_COOKIE, {
+            expiresIn: 60 * 60
+        });
 
         return {
-            user
+            token
         };
     }
     @Mutation(() => Boolean)
-    async logout(@Ctx() { req, res }: MyContext): Promise<boolean> {
-        return new Promise((resolve) =>
-            req.session.destroy((err) => {
-                res.clearCookie(USERID_COOKIE);
-                if (err) {
-                    console.log(err);
-                }
-
-                return resolve(true);
-            })
-        );
-    }
+    async logout() {}
 
     @Query(() => [User])
     async users(@Ctx() { em }: MyContext): Promise<User[]> {
         const users = await em.find(User, {});
         return users;
+    }
+
+    @Query(() => User, { nullable: true })
+    async me(@Ctx() { req, em }: MyContext) {
+        let user;
+        if (req.headers.authorization) {
+            const token = req.headers.authorization.split(`Bearer `)[1];
+            jwt.verify(token, USERID_COOKIE, (err, decodedToken) => {
+                if (err) {
+                    return null;
+                }
+
+                user = decodedToken;
+                return;
+            });
+        }
+
+        if (!user) {
+            return null;
+        }
+        console.log(user);
+        const currentUser = await em.findOne(User, { email: user.email });
+
+        return currentUser;
+    }
+
+    @Mutation(() => Boolean)
+    async deleteUsers(@Ctx() { em }: MyContext): Promise<boolean> {
+        await em.nativeDelete(User, {});
+        return true;
     }
 }
