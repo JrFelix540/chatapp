@@ -1,5 +1,7 @@
-import { Entity, PrimaryKey, Property } from "@mikro-orm/core";
-import { Field, Float, ObjectType } from "type-graphql";
+import { Cascade, Entity, ManyToOne, PrimaryKey, Property } from "@mikro-orm/core";
+import { Field, ObjectType } from "type-graphql";
+import { Chat } from "./Chat";
+import { User } from "./User";
 
 @ObjectType()
 @Entity()
@@ -12,13 +14,17 @@ export class Message {
     @Property()
     content!: string;
 
-    @Field(() => Float)
-    @Property()
-    senderId!: number;
+    @Field(() => User)
+    @ManyToOne(() => User, { cascade: [Cascade.REMOVE], nullable: true })
+    receiver: User;
 
-    @Field(() => Float)
-    @Property()
-    receiverId!: number;
+    @Field(() => User)
+    @ManyToOne(() => User, { cascade: [Cascade.REMOVE], nullable: true })
+    sender: User;
+
+    @Field(() => Chat)
+    @ManyToOne(() => Chat, { cascade: [Cascade.REMOVE], nullable: true })
+    chat: Chat;
 
     @Field(() => String)
     @Property({ type: "date" })

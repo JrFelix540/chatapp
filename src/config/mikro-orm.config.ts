@@ -2,8 +2,9 @@ import { MikroORM } from "@mikro-orm/core";
 import { Message } from "../entities/Message";
 import { User } from "../entities/User";
 import path from "path";
+import { Chat } from "../entities/Chat";
 export default {
-    entities: [Message, User],
+    entities: [Message, User, Chat],
     dbName: "chatapp",
     user: "saleor",
     password: "saleor",

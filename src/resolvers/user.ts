@@ -160,7 +160,6 @@ export class UserResolver {
         if (!user) {
             return null;
         }
-        console.log(user);
         const currentUser = await em.findOne(User, { email: user.email });
 
         return currentUser;
